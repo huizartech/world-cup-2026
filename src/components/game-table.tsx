@@ -1,4 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import type { StaticGame } from "@/lib/static-games";
+import type { WatchParty } from "@/lib/watch-venues";
 import { WatchHostButtons } from "./watch-host-buttons";
 
 // Works with both DB Game type and StaticGame, extended with selection data
@@ -52,6 +56,31 @@ export function LiveScoreBadge({ status }: { status: string }) {
       <span className="w-1.5 h-1.5 rounded-full bg-white" />
       LIVE
     </span>
+  );
+}
+
+function WatchPartiesList({ parties, initialCount }: { parties: WatchParty[]; initialCount: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? parties : parties.slice(0, initialCount);
+  const hasMore = parties.length > initialCount;
+
+  return (
+    <div className="text-xs space-y-0.5 max-w-[200px]">
+      {shown.map((wp) => (
+        <div key={wp.venue}>
+          <span className="text-purple-700 font-medium">{wp.venue}</span>
+          <span className="text-gray-400 ml-1">({wp.neighborhood})</span>
+        </div>
+      ))}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-purple-500 hover:text-purple-700 font-medium cursor-pointer"
+        >
+          {expanded ? "Show less" : `+${parties.length - initialCount} more`}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -137,17 +166,7 @@ export function GameTable({
                 </td>
                 <td className="py-3 px-3">
                   {game.watchParties && game.watchParties.length > 0 ? (
-                    <div className="text-xs space-y-0.5 max-w-[200px]">
-                      {game.watchParties.slice(0, 3).map((wp) => (
-                        <div key={wp.venue}>
-                          <span className="text-purple-700 font-medium">{wp.venue}</span>
-                          <span className="text-gray-400 ml-1">({wp.neighborhood})</span>
-                        </div>
-                      ))}
-                      {game.watchParties.length > 3 && (
-                        <div className="text-gray-400">+{game.watchParties.length - 3} more</div>
-                      )}
-                    </div>
+                    <WatchPartiesList parties={game.watchParties} initialCount={3} />
                   ) : (
                     <span className="text-gray-300">—</span>
                   )}
@@ -245,16 +264,7 @@ function GameCard({ game, onToggle }: { game: GameLike; onToggle?: (gameId: numb
         )}
         {game.watchParties && game.watchParties.length > 0 && (
           <div className="mt-1">
-            <span className="text-purple-700 font-medium">Watch Parties: </span>
-            {game.watchParties.slice(0, 2).map((wp, i) => (
-              <span key={wp.venue} className="text-gray-600">
-                {i > 0 && ", "}
-                {wp.venue}
-              </span>
-            ))}
-            {game.watchParties.length > 2 && (
-              <span className="text-gray-400"> +{game.watchParties.length - 2} more</span>
-            )}
+            <WatchPartiesList parties={game.watchParties} initialCount={2} />
           </div>
         )}
       </div>
