@@ -10,6 +10,7 @@ import { GroupStandings } from "@/components/group-standings";
 import { SignInPromptModal } from "@/components/sign-in-prompt-modal";
 import { PhonePromptModal } from "@/components/phone-prompt-modal";
 import { staticGames, type StaticGame } from "@/lib/static-games";
+import { SD_WATCH_PARTIES } from "@/lib/watch-venues";
 
 type EnrichedGame = StaticGame & {
   watchCount?: number;
@@ -41,6 +42,35 @@ function matchesTimeOfDay(kickoffTime: string, slots: Set<string>): boolean {
     }
   }
   return false;
+}
+
+const FIRST_MATCH = new Date("2026-06-11T19:00:00Z"); // Match 1 kickoff
+
+function Countdown() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const diff = FIRST_MATCH.getTime() - now.getTime();
+  if (diff <= 0) return null;
+
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((diff % 3_600_000) / 60_000);
+  const seconds = Math.floor((diff % 60_000) / 1000);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  parts.push(`${hours}h`, `${minutes}m`, `${seconds}s`);
+
+  return (
+    <span className="text-sm font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full whitespace-nowrap">
+      {parts.join(" ")} to kickoff
+    </span>
+  );
 }
 
 export default function HomePage() {
@@ -199,9 +229,12 @@ export default function HomePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          FIFA World Cup 2026
-        </h1>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">
+            FIFA World Cup 2026
+          </h1>
+          <Countdown />
+        </div>
         <p className="text-gray-500">
           {gameCount} match{gameCount !== 1 ? "es" : ""}
           {liveCount > 0 && (
@@ -215,6 +248,31 @@ export default function HomePage() {
 
       <div className="mb-6">
         <FilterBar filters={filters} onChange={setFilters} />
+      </div>
+
+      {/* San Diego Public Watch Parties */}
+      <div className="mb-8 bg-purple-50 rounded-xl border border-purple-100 p-4 sm:p-6">
+        <h2 className="text-lg font-semibold text-purple-900 mb-3">
+          San Diego Public Watch Parties
+        </h2>
+        <p className="text-sm text-purple-700 mb-3">
+          These venues will be showing World Cup matches all tournament long:
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          {SD_WATCH_PARTIES.map((wp) => (
+            <a
+              key={wp.venue}
+              href={`https://maps.apple.com/?q=${encodeURIComponent(wp.venue + ", San Diego, CA")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col px-3 py-2 rounded-lg bg-white border border-purple-100 hover:border-purple-300 transition-colors"
+            >
+              <span className="text-sm font-medium text-purple-800">{wp.venue}</span>
+              <span className="text-xs text-purple-500">{wp.neighborhood}</span>
+              {wp.notes && <span className="text-xs text-gray-400 mt-0.5">{wp.notes}</span>}
+            </a>
+          ))}
+        </div>
       </div>
 
       {loading ? (

@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import type { StaticGame } from "@/lib/static-games";
-import type { WatchParty } from "@/lib/watch-venues";
 import { WatchHostButtons } from "./watch-host-buttons";
 
 // Works with both DB Game type and StaticGame, extended with selection data
@@ -66,37 +64,6 @@ export function LiveScoreBadge({ status }: { status: string }) {
   );
 }
 
-function WatchPartiesList({ parties, initialCount }: { parties: WatchParty[]; initialCount: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? parties : parties.slice(0, initialCount);
-  const hasMore = parties.length > initialCount;
-
-  return (
-    <div className="text-xs space-y-0.5 max-w-[200px]">
-      {shown.map((wp) => (
-        <div key={wp.venue}>
-          <a
-            href={`https://maps.apple.com/?q=${encodeURIComponent(wp.venue + ", San Diego, CA")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-purple-700 font-medium hover:underline"
-          >
-            {wp.venue}
-          </a>
-        </div>
-      ))}
-      {hasMore && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-purple-500 hover:text-purple-700 font-medium cursor-pointer"
-        >
-          {expanded ? "Show less" : `+${parties.length - initialCount} more`}
-        </button>
-      )}
-    </div>
-  );
-}
-
 export function GameTable({
   games,
   onToggle,
@@ -126,7 +93,6 @@ export function GameTable({
               <th className="py-3 px-3">Date & Time</th>
               <th className="py-3 px-3">Venue</th>
               <th className="py-3 px-3">Watch Location</th>
-              <th className="py-3 px-3">San Diego Public Watch Parties</th>
               <th className="py-3 px-3">Interest</th>
               <th className="py-3 px-3">Watch / Host</th>
             </tr>
@@ -174,13 +140,6 @@ export function GameTable({
                         <div className="text-xs text-gray-400">{game.locationNotes}</div>
                       )}
                     </div>
-                  ) : (
-                    <span className="text-gray-300">—</span>
-                  )}
-                </td>
-                <td className="py-3 px-3">
-                  {game.watchParties && game.watchParties.length > 0 ? (
-                    <WatchPartiesList parties={game.watchParties} initialCount={3} />
                   ) : (
                     <span className="text-gray-300">—</span>
                   )}
@@ -275,11 +234,6 @@ function GameCard({ game, onToggle }: { game: GameLike; onToggle?: (gameId: numb
                 · {game.locationNotes}
               </span>
             )}
-          </div>
-        )}
-        {game.watchParties && game.watchParties.length > 0 && (
-          <div className="mt-1">
-            <WatchPartiesList parties={game.watchParties} initialCount={2} />
           </div>
         )}
       </div>
