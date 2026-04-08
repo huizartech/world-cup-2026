@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { db } from "@/db";
-import { users } from "@/db/schema";
+import { neon } from "@neondatabase/serverless";
 
 export async function GET() {
-  const session = await auth();
-
   const rawUrl = process.env.POSTGRES_URL || "";
   const cleanedUrl = rawUrl
     .replace(/[?&]channel_binding=[^&]*/, (match) =>
@@ -14,22 +10,25 @@ export async function GET() {
     .replace(/\?&/, "?")
     .replace(/\?$/, "");
 
-  let dbUsers = null;
-  let dbError = null;
+  const results: Record<string, unknown> = {
+    cleanedUrlEnd: "..." + cleanedUrl.slice(-60),
+  };
+
   try {
-    dbUsers = await db.select().from(users).limit(10);
+    const sql = neon(cleanedUrl);
+    const ping = await sql`SELECT 1 as ok`;
+    results.ping = ping;
   } catch (e) {
-    dbError = String(e);
+    results.pingError = String(e);
   }
 
-  return NextResponse.json({
-    session,
-    dbUsers,
-    dbError,
-    env: {
-      hasPostgresUrl: !!process.env.POSTGRES_URL,
-      rawUrlEnd: "..." + rawUrl.slice(-60),
-      cleanedUrlEnd: "..." + cleanedUrl.slice(-60),
-    },
-  });
+  try {
+    const sql = neon(cleanedUrl);
+    const tables = await sql`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
+    results.tables = tables;
+  } catch (e) {
+    results.tablesError = String(e);
+  }
+
+  return NextResponse.json(results);
 }
