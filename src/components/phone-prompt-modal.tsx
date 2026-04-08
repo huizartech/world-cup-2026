@@ -2,6 +2,20 @@
 
 import { useState } from "react";
 
+function formatPhoneNumber(value: string): string {
+  // Strip everything except digits
+  const digits = value.replace(/\D/g, "");
+
+  // If user typed a leading 1, treat it as country code
+  const hasCountryCode = digits.length > 10 || (digits.length === 11 && digits[0] === "1");
+  const d = hasCountryCode && digits[0] === "1" ? digits.slice(1) : digits;
+
+  if (d.length === 0) return "";
+  if (d.length <= 3) return `+1 (${d}`;
+  if (d.length <= 6) return `+1 (${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6, 10)}`;
+}
+
 export function PhonePromptModal({
   onSubmit,
   onClose,
@@ -13,23 +27,33 @@ export function PhonePromptModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhone(formatted);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim()) {
-      setError("Phone number is required");
+    // Validate we have 10 digits
+    const digits = phone.replace(/\D/g, "");
+    const cleanDigits = digits.startsWith("1") && digits.length === 11 ? digits.slice(1) : digits;
+    if (cleanDigits.length !== 10) {
+      setError("Please enter a valid 10-digit phone number");
       return;
     }
     setSaving(true);
     setError("");
 
+    const formatted = `+1 (${cleanDigits.slice(0, 3)}) ${cleanDigits.slice(3, 6)}-${cleanDigits.slice(6, 10)}`;
+
     try {
       const res = await fetch("/api/user/phone", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phone.trim() }),
+        body: JSON.stringify({ phone: formatted }),
       });
       if (!res.ok) throw new Error("Failed to save");
-      onSubmit(phone.trim());
+      onSubmit(formatted);
     } catch {
       setError("Failed to save phone number. Please try again.");
     } finally {
@@ -51,8 +75,8 @@ export function PhonePromptModal({
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="(555) 123-4567"
+            onChange={handleChange}
+            placeholder="+1 (555) 123-4567"
             className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
           />

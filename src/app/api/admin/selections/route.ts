@@ -17,6 +17,7 @@ export async function GET() {
       name: users.name,
       email: users.email,
       image: users.image,
+      phone: users.phone,
     })
     .from(users)
     .orderBy(asc(users.name));

@@ -7,6 +7,7 @@ interface SelectionUser {
   name: string | null;
   email: string;
   image: string | null;
+  phone: string | null;
 }
 
 interface SelectionGame {
@@ -126,7 +127,42 @@ export default function SelectionsOverviewPage() {
           No selections yet. Users can click Watch/Host buttons on the game table.
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+          {/* User directory with phone numbers */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">User Directory</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {activeUsers.map((u) => {
+                const t = userTotals.get(u.id);
+                return (
+                  <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                    {u.image && (
+                      <img src={u.image} alt="" className="w-8 h-8 rounded-full" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm truncate">{u.name ?? u.email}</div>
+                      <div className="text-xs text-gray-500">
+                        {u.phone ? (
+                          <a href={`tel:${u.phone}`} className="text-blue-600 hover:underline">{u.phone}</a>
+                        ) : (
+                          <span className="text-gray-300">No phone</span>
+                        )}
+                        {t && (
+                          <span className="ml-2 text-gray-400">
+                            {t.watch > 0 && <span className="text-blue-500">{t.watch}w</span>}
+                            {t.watch > 0 && t.host > 0 && " "}
+                            {t.host > 0 && <span className="text-green-500">{t.host}h</span>}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
           <table className="text-xs border-collapse">
             <thead>
               <tr>
@@ -210,6 +246,7 @@ export default function SelectionsOverviewPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );
