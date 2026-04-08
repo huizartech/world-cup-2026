@@ -32,7 +32,6 @@ const TIME_SLOTS = [
 export interface Filters {
   stage: string;
   groups: Set<string>;
-  date: string;
   interest: string;
   timeOfDay: Set<string>;
   dayType: string; // "" | "weekday" | "weekend"
@@ -71,7 +70,6 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
   const hasFilters =
     filters.stage ||
     filters.groups.size > 0 ||
-    filters.date ||
     filters.interest ||
     filters.timeOfDay.size > 0 ||
     filters.dayType;
@@ -92,15 +90,6 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           ))}
         </select>
 
-        <input
-          type="date"
-          value={filters.date}
-          onChange={(e) => update("date", e.target.value)}
-          className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          min="2026-06-11"
-          max="2026-07-19"
-        />
-
         <select
           value={filters.interest}
           onChange={(e) => update("interest", e.target.value)}
@@ -119,7 +108,6 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               onChange({
                 stage: "",
                 groups: new Set(),
-                date: "",
                 interest: "",
                 timeOfDay: new Set(),
                 dayType: "",

@@ -3,94 +3,89 @@
 import { useState } from "react";
 import type { StaticGame } from "@/lib/static-games";
 
-const ROUNDS = [
-  { key: "round_of_32", label: "Round of 32", short: "R32" },
-  { key: "round_of_16", label: "Round of 16", short: "R16" },
-  { key: "quarter_final", label: "Quarter Finals", short: "QF" },
-  { key: "semi_final", label: "Semi Finals", short: "SF" },
-  { key: "third_place", label: "Third Place", short: "3rd" },
-  { key: "final", label: "Final", short: "F" },
-];
+// --- Shared helpers ---
 
 function formatDate(kickoffTime: string) {
   return new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
     month: "short",
     day: "numeric",
   }).format(new Date(kickoffTime));
 }
 
-function formatTime(kickoffTime: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(new Date(kickoffTime));
+// --- Bracket constants ---
+
+const CARD_W = 155;
+const CARD_H = 50;
+const BASE_GAP = 6;
+const UNIT = CARD_H + BASE_GAP;
+const COL_GAP = 36;
+const COL_STEP = CARD_W + COL_GAP;
+
+const BRACKET_STAGES = [
+  "round_of_32",
+  "round_of_16",
+  "quarter_final",
+  "semi_final",
+  "final",
+];
+
+function matchTop(round: number, index: number): number {
+  if (round === 0) return index * UNIT;
+  const top = matchTop(round - 1, index * 2);
+  const bottom = matchTop(round - 1, index * 2 + 1);
+  return (top + bottom) / 2;
 }
 
-function MatchCard({ game }: { game: StaticGame }) {
+// --- Compact match card for bracket ---
+
+function BracketCard({
+  game,
+  x,
+  y,
+}: {
+  game: StaticGame;
+  x: number;
+  y: number;
+}) {
   const isLive = game.matchStatus === "live";
   const isFinished = game.matchStatus === "finished";
 
   return (
     <div
-      className={`rounded-xl border-2 transition-all ${
+      className={`absolute rounded-lg border text-[11px] overflow-hidden ${
         isLive
-          ? "border-red-400 bg-red-50 shadow-lg shadow-red-100"
+          ? "border-red-400 bg-red-50 shadow-md"
           : isFinished
-          ? "border-gray-200 bg-white"
-          : "border-gray-200 bg-white hover:border-blue-300 hover:shadow-md"
+          ? "border-gray-300 bg-white"
+          : "border-gray-200 bg-white"
       }`}
+      style={{ left: x, top: y, width: CARD_W, height: CARD_H }}
     >
-      {/* Match header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-        <span className="text-xs text-gray-400">#{game.matchNumber}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">
-            {formatDate(game.kickoffTime)}
-          </span>
-          {isLive && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-600 text-white animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-white" />
-              LIVE
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Teams */}
-      <div className="px-4 py-3 space-y-2">
-        <TeamRow
+      <div className="h-full flex flex-col justify-center px-2 gap-0.5">
+        <BracketTeamRow
           team={game.homeTeam}
           score={game.homeScore}
-          isWinner={isFinished && game.homeScore != null && game.awayScore != null && game.homeScore > game.awayScore}
+          isWinner={isFinished && (game.homeScore ?? 0) > (game.awayScore ?? 0)}
           showScore={isLive || isFinished}
         />
-        <div className="border-t border-dashed border-gray-200" />
-        <TeamRow
+        <div className="border-t border-gray-100" />
+        <BracketTeamRow
           team={game.awayTeam}
           score={game.awayScore}
-          isWinner={isFinished && game.homeScore != null && game.awayScore != null && game.awayScore > game.homeScore}
+          isWinner={isFinished && (game.awayScore ?? 0) > (game.homeScore ?? 0)}
           showScore={isLive || isFinished}
         />
       </div>
-
-      {/* Footer */}
-      <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-gray-400 truncate max-w-[60%]">
-            {game.venueStadium}
-          </span>
-          <span className="text-[11px] text-gray-500">
-            {formatTime(game.kickoffTime)}
-          </span>
+      {isLive && (
+        <div className="absolute top-0 right-0 px-1 py-0.5 bg-red-600 text-white text-[8px] font-bold rounded-bl">
+          LIVE
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function TeamRow({
+function BracketTeamRow({
   team,
   score,
   isWinner,
@@ -102,150 +97,275 @@ function TeamRow({
   showScore: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-1">
       <span
-        className={`text-sm ${
-          isWinner ? "font-bold text-gray-900" : "font-medium text-gray-700"
+        className={`truncate ${
+          isWinner ? "font-bold text-gray-900" : "text-gray-600"
         }`}
       >
         {team}
       </span>
-      {showScore ? (
+      {showScore && (
         <span
-          className={`text-lg font-bold tabular-nums ${
+          className={`font-bold tabular-nums flex-shrink-0 ${
             isWinner ? "text-blue-600" : "text-gray-400"
           }`}
         >
           {score ?? 0}
         </span>
-      ) : (
-        <span className="text-sm text-gray-300">—</span>
       )}
     </div>
   );
 }
 
-export function KnockoutBracket({ games }: { games: StaticGame[] }) {
+// --- SVG connector lines ---
+
+function BracketConnectors({
+  roundGames,
+  totalWidth,
+  totalHeight,
+}: {
+  roundGames: StaticGame[][];
+  totalWidth: number;
+  totalHeight: number;
+}) {
+  const paths: string[] = [];
+
+  for (let r = 0; r < roundGames.length - 1; r++) {
+    const nextCount = roundGames[r + 1].length;
+    for (let j = 0; j < nextCount; j++) {
+      const y1 = matchTop(r, j * 2) + CARD_H / 2;
+      const y2 = matchTop(r, j * 2 + 1) + CARD_H / 2;
+      const y3 = matchTop(r + 1, j) + CARD_H / 2;
+      const x1 = r * COL_STEP + CARD_W;
+      const x2 = (r + 1) * COL_STEP;
+      const mx = (x1 + x2) / 2;
+
+      paths.push(`M${x1},${y1} H${mx}`);
+      paths.push(`M${x1},${y2} H${mx}`);
+      paths.push(`M${mx},${y1} V${y2}`);
+      paths.push(`M${mx},${y3} H${x2}`);
+    }
+  }
+
+  return (
+    <svg
+      className="absolute inset-0 pointer-events-none"
+      width={totalWidth}
+      height={totalHeight}
+    >
+      {paths.map((d, i) => (
+        <path
+          key={i}
+          d={d}
+          fill="none"
+          stroke="#d1d5db"
+          strokeWidth={1.5}
+        />
+      ))}
+    </svg>
+  );
+}
+
+// --- Visual bracket (desktop) ---
+
+function VisualBracket({ games }: { games: StaticGame[] }) {
+  const roundGames = BRACKET_STAGES.map((stage) =>
+    games
+      .filter((g) => g.stage === stage)
+      .sort((a, b) => a.matchNumber - b.matchNumber)
+  );
+
+  const thirdPlace = games.find((g) => g.stage === "third_place");
+
+  const r32Count = roundGames[0].length; // 16
+  const totalHeight = (r32Count - 1) * UNIT + CARD_H;
+  const totalWidth = BRACKET_STAGES.length * COL_STEP - COL_GAP;
+
+  return (
+    <div className="space-y-6">
+      {/* Round labels */}
+      <div className="relative" style={{ width: totalWidth, height: 28 }}>
+        {BRACKET_STAGES.map((stage, r) => (
+          <div
+            key={stage}
+            className="absolute text-xs font-semibold text-gray-500 uppercase tracking-wider text-center"
+            style={{ left: r * COL_STEP, width: CARD_W }}
+          >
+            {stage === "round_of_32"
+              ? "R32"
+              : stage === "round_of_16"
+              ? "R16"
+              : stage === "quarter_final"
+              ? "QF"
+              : stage === "semi_final"
+              ? "SF"
+              : "Final"}
+          </div>
+        ))}
+      </div>
+
+      {/* Bracket body */}
+      <div
+        className="relative"
+        style={{ width: totalWidth, height: totalHeight }}
+      >
+        <BracketConnectors
+          roundGames={roundGames}
+          totalWidth={totalWidth}
+          totalHeight={totalHeight}
+        />
+        {roundGames.map((round, r) =>
+          round.map((game, i) => (
+            <BracketCard
+              key={game.id}
+              game={game}
+              x={r * COL_STEP}
+              y={matchTop(r, i)}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Third place */}
+      {thirdPlace && (
+        <div className="mt-4">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            Third Place
+          </div>
+          <div className="relative" style={{ width: CARD_W, height: CARD_H }}>
+            <BracketCard game={thirdPlace} x={0} y={0} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Mobile round-by-round view ---
+
+const ROUNDS = [
+  { key: "round_of_32", label: "Round of 32" },
+  { key: "round_of_16", label: "Round of 16" },
+  { key: "quarter_final", label: "Quarter Finals" },
+  { key: "semi_final", label: "Semi Finals" },
+  { key: "third_place", label: "Third Place" },
+  { key: "final", label: "Final" },
+];
+
+function MobileMatchCard({ game }: { game: StaticGame }) {
+  const isLive = game.matchStatus === "live";
+  const isFinished = game.matchStatus === "finished";
+
+  return (
+    <div
+      className={`rounded-xl border-2 ${
+        isLive
+          ? "border-red-400 bg-red-50"
+          : "border-gray-200 bg-white"
+      }`}
+    >
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+        <span className="text-xs text-gray-400">#{game.matchNumber}</span>
+        <span className="text-xs text-gray-500">{formatDate(game.kickoffTime)}</span>
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className={`text-sm ${isFinished && (game.homeScore ?? 0) > (game.awayScore ?? 0) ? "font-bold" : "font-medium text-gray-700"}`}>
+            {game.homeTeam}
+          </span>
+          {(isLive || isFinished) && (
+            <span className={`text-lg font-bold tabular-nums ${isFinished && (game.homeScore ?? 0) > (game.awayScore ?? 0) ? "text-blue-600" : "text-gray-400"}`}>
+              {game.homeScore ?? 0}
+            </span>
+          )}
+        </div>
+        <div className="border-t border-dashed border-gray-200" />
+        <div className="flex items-center justify-between">
+          <span className={`text-sm ${isFinished && (game.awayScore ?? 0) > (game.homeScore ?? 0) ? "font-bold" : "font-medium text-gray-700"}`}>
+            {game.awayTeam}
+          </span>
+          {(isLive || isFinished) && (
+            <span className={`text-lg font-bold tabular-nums ${isFinished && (game.awayScore ?? 0) > (game.homeScore ?? 0) ? "text-blue-600" : "text-gray-400"}`}>
+              {game.awayScore ?? 0}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileBracket({ games }: { games: StaticGame[] }) {
   const [roundIndex, setRoundIndex] = useState(0);
   const currentRound = ROUNDS[roundIndex];
 
   const roundGames = games
     .filter((g) => g.stage === currentRound.key)
-    .sort(
-      (a, b) =>
-        new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime()
-    );
-
-  const canGoLeft = roundIndex > 0;
-  const canGoRight = roundIndex < ROUNDS.length - 1;
-
-  // Grid columns based on number of matches
-  const gridCols =
-    roundGames.length >= 8
-      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-      : roundGames.length >= 4
-      ? "grid-cols-1 sm:grid-cols-2"
-      : roundGames.length >= 2
-      ? "grid-cols-1 sm:grid-cols-2"
-      : "grid-cols-1 max-w-md mx-auto";
+    .sort((a, b) => new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime());
 
   return (
     <div>
-      {/* Round navigation */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setRoundIndex((i) => i - 1)}
-          disabled={!canGoLeft}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            canGoLeft
-              ? "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-              : "text-gray-300 cursor-not-allowed"
-          }`}
+          disabled={roundIndex === 0}
+          className={`p-2 rounded-lg ${roundIndex > 0 ? "text-gray-700 hover:bg-gray-100" : "text-gray-300"}`}
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          {canGoLeft && (
-            <span className="hidden sm:inline">{ROUNDS[roundIndex - 1].label}</span>
-          )}
         </button>
-
         <div className="text-center">
-          <h3 className="text-xl font-bold text-gray-900">
-            {currentRound.label}
-          </h3>
-          <p className="text-sm text-gray-500">
-            {roundGames.length} match{roundGames.length !== 1 ? "es" : ""}
-          </p>
+          <h3 className="text-lg font-bold text-gray-900">{currentRound.label}</h3>
+          <p className="text-xs text-gray-500">{roundGames.length} match{roundGames.length !== 1 ? "es" : ""}</p>
         </div>
-
         <button
           onClick={() => setRoundIndex((i) => i + 1)}
-          disabled={!canGoRight}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            canGoRight
-              ? "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-              : "text-gray-300 cursor-not-allowed"
-          }`}
+          disabled={roundIndex === ROUNDS.length - 1}
+          className={`p-2 rounded-lg ${roundIndex < ROUNDS.length - 1 ? "text-gray-700 hover:bg-gray-100" : "text-gray-300"}`}
         >
-          {canGoRight && (
-            <span className="hidden sm:inline">{ROUNDS[roundIndex + 1].label}</span>
-          )}
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
-
-      {/* Round dots */}
-      <div className="flex justify-center gap-1.5 mb-6">
+      <div className="flex justify-center gap-1.5 mb-4">
         {ROUNDS.map((round, i) => (
           <button
             key={round.key}
             onClick={() => setRoundIndex(i)}
-            title={round.label}
-            className={`h-2 rounded-full transition-all ${
-              i === roundIndex
-                ? "w-8 bg-blue-600"
-                : "w-2 bg-gray-300 hover:bg-gray-400"
-            }`}
+            className={`h-2 rounded-full transition-all ${i === roundIndex ? "w-8 bg-blue-600" : "w-2 bg-gray-300 hover:bg-gray-400"}`}
           />
         ))}
       </div>
-
-      {/* Match cards grid */}
-      <div className={`grid ${gridCols} gap-4`}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {roundGames.map((game) => (
-          <MatchCard key={game.id} game={game} />
+          <MobileMatchCard key={game.id} game={game} />
         ))}
       </div>
-
-      {/* Bracket flow hint */}
-      {canGoRight && roundGames.length > 1 && (
-        <div className="flex justify-center mt-6">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <span>Winners advance to</span>
-            <button
-              onClick={() => setRoundIndex((i) => i + 1)}
-              className="text-blue-500 hover:text-blue-700 font-medium"
-            >
-              {ROUNDS[roundIndex + 1].label} →
-            </button>
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+// --- Main export ---
+
+export function KnockoutBracket({ games }: { games: StaticGame[] }) {
+  const knockoutGames = games.filter((g) =>
+    [...BRACKET_STAGES, "third_place"].includes(g.stage)
+  );
+
+  return (
+    <>
+      {/* Desktop: visual bracket */}
+      <div className="hidden lg:block overflow-x-auto pb-4">
+        <VisualBracket games={knockoutGames} />
+      </div>
+
+      {/* Mobile/tablet: round-by-round */}
+      <div className="lg:hidden">
+        <MobileBracket games={knockoutGames} />
+      </div>
+    </>
   );
 }

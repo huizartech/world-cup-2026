@@ -52,7 +52,6 @@ export default function HomePage() {
   const [filters, setFilters] = useState<Filters>({
     stage: "",
     groups: new Set<string>(),
-    date: "",
     interest: "",
     timeOfDay: new Set<string>(),
     dayType: "",
@@ -62,7 +61,6 @@ export default function HomePage() {
     try {
       const params = new URLSearchParams();
       if (filters.stage) params.set("stage", filters.stage);
-      if (filters.date) params.set("date", filters.date);
       if (filters.interest) params.set("interest", filters.interest);
 
       const res = await fetch(`/api/games?${params}`);
@@ -76,7 +74,7 @@ export default function HomePage() {
       // API unavailable — static data will be used
     }
     setLoading(false);
-  }, [filters.stage, filters.date, filters.interest]);
+  }, [filters.stage, filters.interest]);
 
   useEffect(() => {
     fetchGames();
@@ -173,10 +171,6 @@ export default function HomePage() {
         if (!game.groupName || !filters.groups.has(game.groupName)) return false;
       }
       if (filters.interest && game.interestLevel !== filters.interest) return false;
-      if (filters.date) {
-        const gameDate = new Date(game.kickoffTime).toISOString().split("T")[0];
-        if (gameDate !== filters.date) return false;
-      }
       if (filters.timeOfDay.size > 0 && !matchesTimeOfDay(game.kickoffTime, filters.timeOfDay)) {
         return false;
       }
