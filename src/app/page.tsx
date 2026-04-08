@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { GameTable } from "@/components/game-table";
 import { FilterBar, type Filters } from "@/components/filter-bar";
 import { KnockoutBracket } from "@/components/knockout-bracket";
 import { RankingsTable } from "@/components/rankings-table";
+import { SignInPromptModal } from "@/components/sign-in-prompt-modal";
+import { PhonePromptModal } from "@/components/phone-prompt-modal";
 import { staticGames, type StaticGame } from "@/lib/static-games";
+
+type EnrichedGame = StaticGame & {
+  watchCount?: number;
+  userWatching?: boolean;
+  userHosting?: boolean;
+};
 
 // Returns local hour (0-23) for a UTC time string
 function getLocalHour(kickoffTime: string): number {
@@ -34,8 +43,12 @@ function matchesTimeOfDay(kickoffTime: string, slots: Set<string>): boolean {
 }
 
 export default function HomePage() {
-  const [dbGames, setDbGames] = useState<StaticGame[] | null>(null);
+  const { data: session, update: updateSession } = useSession();
+  const [dbGames, setDbGames] = useState<EnrichedGame[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [showPhone, setShowPhone] = useState(false);
+  const [pendingToggle, setPendingToggle] = useState<{ gameId: number; type: "watch" | "host" } | null>(null);
   const [filters, setFilters] = useState<Filters>({
     stage: "",
     groups: new Set<string>(),
@@ -82,6 +95,76 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [dbGames, fetchGames]);
 
+  const handleToggle = useCallback(async (gameId: number, type: "watch" | "host") => {
+    // Check auth
+    if (!session?.user) {
+      setPendingToggle({ gameId, type });
+      setShowSignIn(true);
+      return;
+    }
+
+    // Check phone
+    if (!session.user.phone) {
+      setPendingToggle({ gameId, type });
+      setShowPhone(true);
+      return;
+    }
+
+    // Optimistic update
+    setDbGames((prev) => {
+      if (!prev) return prev;
+      return prev.map((g) => {
+        if (g.id !== gameId) return g;
+        const newWatching = type === "watch" ? !g.userWatching : g.userWatching;
+        const newHosting = type === "host" ? !g.userHosting : g.userHosting;
+        const watchDelta = type === "watch" ? (newWatching ? 1 : -1) : 0;
+        return {
+          ...g,
+          userWatching: newWatching,
+          userHosting: newHosting,
+          watchCount: (g.watchCount ?? 0) + watchDelta,
+        };
+      });
+    });
+
+    try {
+      const res = await fetch(`/api/games/${gameId}/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      if (res.ok) {
+        const { watching, hosting, watchCount } = await res.json();
+        // Reconcile with server
+        setDbGames((prev) => {
+          if (!prev) return prev;
+          return prev.map((g) =>
+            g.id === gameId
+              ? { ...g, userWatching: watching, userHosting: hosting, watchCount }
+              : g
+          );
+        });
+      }
+    } catch {
+      // Revert on error by refetching
+      fetchGames();
+    }
+  }, [session, fetchGames]);
+
+  const handlePhoneSubmit = useCallback(async (phone: string) => {
+    setShowPhone(false);
+    // Update session to reflect new phone
+    await updateSession();
+    // Execute pending toggle
+    if (pendingToggle) {
+      // Small delay to let session update propagate
+      setTimeout(() => {
+        handleToggle(pendingToggle.gameId, pendingToggle.type);
+        setPendingToggle(null);
+      }, 500);
+    }
+  }, [pendingToggle, handleToggle, updateSession]);
+
   // Apply filters and sorting
   const games = useMemo(() => {
     const source = dbGames ?? staticGames;
@@ -124,10 +207,10 @@ export default function HomePage() {
           {gameCount} match{gameCount !== 1 ? "es" : ""}
           {liveCount > 0 && (
             <span className="text-red-600 font-medium">
-              {" "}· {liveCount} live now
+              {" "} · {liveCount} live now
             </span>
           )}
-          {" "}· June 11 – July 19, 2026
+          {" "} · June 11 – July 19, 2026
         </p>
       </div>
 
@@ -145,7 +228,7 @@ export default function HomePage() {
           ))}
         </div>
       ) : (
-        <GameTable games={games} />
+        <GameTable games={games} onToggle={handleToggle} />
       )}
 
       {/* Knockout Bracket */}
@@ -169,6 +252,17 @@ export default function HomePage() {
         </p>
         <RankingsTable />
       </div>
+
+      {/* Modals */}
+      {showSignIn && (
+        <SignInPromptModal onClose={() => { setShowSignIn(false); setPendingToggle(null); }} />
+      )}
+      {showPhone && (
+        <PhonePromptModal
+          onSubmit={handlePhoneSubmit}
+          onClose={() => { setShowPhone(false); setPendingToggle(null); }}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { games, surveyResponses, users } from "@/db/schema";
+import { games, gameSelections, users } from "@/db/schema";
 import { sendEmail, buildWeeklyAdminEmail } from "@/lib/email";
-import { and, gte, lte, eq, inArray } from "drizzle-orm";
+import { and, gte, lte, eq } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
@@ -43,20 +43,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: "No games this week" });
   }
 
-  // Get survey responses with phone numbers for people who care about these games
-  const allResponses = await db
-    .select()
-    .from(surveyResponses)
-    .where(eq(surveyResponses.wantsEmailReminders, true));
+  // Get all selections for this week's games with user info
+  const weekGameIds = weekGames.map((g) => g.id);
+  const allSelections = await db
+    .select({
+      gameId: gameSelections.gameId,
+      watching: gameSelections.watching,
+      hosting: gameSelections.hosting,
+      userName: users.name,
+      userPhone: users.phone,
+    })
+    .from(gameSelections)
+    .leftJoin(users, eq(gameSelections.userId, users.id))
+    .where(eq(gameSelections.watching, true));
 
   const emailGames = weekGames.map((game) => {
-    // Find people who care about this game
-    const interestedPeople = allResponses.filter(
-      (r) => r.gamesCareAbout?.includes(game.matchNumber)
+    const interestedPeople = allSelections.filter(
+      (s) => s.gameId === game.id && s.watching
     );
     const phoneNumbers = interestedPeople
-      .filter((r) => r.phone)
-      .map((r) => `${r.name}: ${r.phone}`);
+      .filter((s) => s.userPhone)
+      .map((s) => `${s.userName}: ${s.userPhone}`);
 
     return {
       matchNumber: game.matchNumber,

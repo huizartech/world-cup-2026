@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { surveyResponses, users } from "@/db/schema";
+import { gameSelections, users, games } from "@/db/schema";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/permissions";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 export async function GET() {
   const session = await auth();
@@ -11,27 +11,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const responses = await db
+  const selections = await db
     .select({
-      id: surveyResponses.id,
-      userId: surveyResponses.userId,
-      name: surveyResponses.name,
-      email: surveyResponses.email,
-      phone: surveyResponses.phone,
-      canHost: surveyResponses.canHost,
-      gamesToHost: surveyResponses.gamesToHost,
-      gamesCareAbout: surveyResponses.gamesCareAbout,
-      wantsEmailReminders: surveyResponses.wantsEmailReminders,
-      wantsTextReminders: surveyResponses.wantsTextReminders,
-      createdAt: surveyResponses.createdAt,
-      updatedAt: surveyResponses.updatedAt,
+      id: gameSelections.id,
+      userId: gameSelections.userId,
+      gameId: gameSelections.gameId,
+      watching: gameSelections.watching,
+      hosting: gameSelections.hosting,
+      createdAt: gameSelections.createdAt,
       userName: users.name,
       userEmail: users.email,
-      userImage: users.image,
+      userPhone: users.phone,
     })
-    .from(surveyResponses)
-    .leftJoin(users, eq(surveyResponses.userId, users.id))
-    .orderBy(surveyResponses.createdAt);
+    .from(gameSelections)
+    .leftJoin(users, eq(gameSelections.userId, users.id))
+    .orderBy(asc(gameSelections.createdAt));
 
-  return NextResponse.json(responses);
+  return NextResponse.json(selections);
 }

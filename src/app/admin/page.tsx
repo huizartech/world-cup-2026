@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { isAdmin } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { games, users, surveyResponses } from "@/db/schema";
+import { games, users, gameSelections, hostParties } from "@/db/schema";
 import { eq, count } from "drizzle-orm";
 import Link from "next/link";
 
@@ -14,29 +14,26 @@ export default async function AdminDashboard() {
     { label: "Total Games", value: 104, href: "/" },
     { label: "Live Now", value: 0, color: "text-red-600" },
     { label: "Users", value: 0 },
-    { label: "Survey Responses", value: 0, href: "/admin/responses" },
-    { label: "Private Locations", value: 0, href: "/admin/parties" },
+    { label: "Selections", value: 0, href: "/admin/responses" },
+    { label: "Host Parties", value: 0, href: "/admin/parties" },
   ];
 
   try {
     const [gameCount] = await db.select({ count: count() }).from(games);
     const [userCount] = await db.select({ count: count() }).from(users);
-    const [surveyCount] = await db.select({ count: count() }).from(surveyResponses);
+    const [selectionCount] = await db.select({ count: count() }).from(gameSelections);
     const [liveGames] = await db
       .select({ count: count() })
       .from(games)
       .where(eq(games.matchStatus, "live"));
-    const [privateGames] = await db
-      .select({ count: count() })
-      .from(games)
-      .where(eq(games.locationType, "private"));
+    const [partyCount] = await db.select({ count: count() }).from(hostParties);
 
     stats = [
       { label: "Total Games", value: gameCount.count, href: "/" },
       { label: "Live Now", value: liveGames.count, color: "text-red-600" },
       { label: "Users", value: userCount.count },
-      { label: "Survey Responses", value: surveyCount.count, href: "/admin/responses" },
-      { label: "Private Locations", value: privateGames.count, href: "/admin/parties" },
+      { label: "Selections", value: selectionCount.count, href: "/admin/responses" },
+      { label: "Host Parties", value: partyCount.count, href: "/admin/parties" },
     ];
   } catch {
     // No database connected — show defaults
@@ -66,10 +63,10 @@ export default async function AdminDashboard() {
           className="block bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow"
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
-            Survey Responses
+            Selections Overview
           </h2>
           <p className="text-sm text-gray-500">
-            View all survey entries, download JSON export
+            View all watch/host selections in a matrix view
           </p>
         </Link>
 
@@ -78,10 +75,10 @@ export default async function AdminDashboard() {
           className="block bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow"
         >
           <h2 className="text-lg font-semibold text-gray-900 mb-1">
-            Watch Party Access
+            Host Parties
           </h2>
           <p className="text-sm text-gray-500">
-            Manage who can see private watch locations
+            Create and manage private host party locations
           </p>
         </Link>
 

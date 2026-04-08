@@ -14,14 +14,8 @@ export function Nav() {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl">
               <span className="text-2xl">⚽</span>
-              <span className="hidden sm:inline">WC 2026 Watch Party</span>
+              <span className="hidden sm:inline">WC 2026 Watch Parties</span>
               <span className="sm:hidden">WC 2026</span>
-            </Link>
-            <Link
-              href="/survey"
-              className="text-sm text-gray-300 hover:text-white transition-colors"
-            >
-              Survey
             </Link>
             {isAdmin && (
               <Link

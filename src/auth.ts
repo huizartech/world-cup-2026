@@ -63,6 +63,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (dbUser.length > 0) {
             token.dbId = dbUser[0].id;
             token.role = dbUser[0].role;
+            token.phone = dbUser[0].phone;
           }
         } catch {
           // No database — set role from env match
@@ -80,6 +81,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (dbUser.length > 0) {
             token.dbId = dbUser[0].id;
             token.role = dbUser[0].role;
+            token.phone = dbUser[0].phone;
           }
         } catch {
           // No database available
@@ -91,6 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as { id: number }).id = token.dbId as number;
         (session.user as { role: string }).role = token.role as string;
+        (session.user as { phone: string | null }).phone = (token.phone as string | null) ?? null;
       }
       return session;
     },

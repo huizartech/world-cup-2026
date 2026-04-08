@@ -4,7 +4,7 @@ import { Nav } from "@/components/nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "World Cup 2026 Watch Party",
+  title: "World Cup 2026 Watch Parties",
   description: "Coordinate watching all 104 World Cup 2026 matches with friends",
 };
 

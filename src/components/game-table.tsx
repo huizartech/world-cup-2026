@@ -1,7 +1,12 @@
 import type { StaticGame } from "@/lib/static-games";
+import { WatchHostButtons } from "./watch-host-buttons";
 
-// Works with both DB Game type and StaticGame
-type GameLike = StaticGame;
+// Works with both DB Game type and StaticGame, extended with selection data
+type GameLike = StaticGame & {
+  watchCount?: number;
+  userWatching?: boolean;
+  userHosting?: boolean;
+};
 
 const interestColors: Record<string, string> = {
   must_watch: "bg-red-100 text-red-800",
@@ -50,7 +55,13 @@ export function LiveScoreBadge({ status }: { status: string }) {
   );
 }
 
-export function GameTable({ games }: { games: GameLike[] }) {
+export function GameTable({
+  games,
+  onToggle,
+}: {
+  games: GameLike[];
+  onToggle?: (gameId: number, type: "watch" | "host") => void;
+}) {
   if (games.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -73,8 +84,9 @@ export function GameTable({ games }: { games: GameLike[] }) {
               <th className="py-3 px-3">Date & Time</th>
               <th className="py-3 px-3">Venue</th>
               <th className="py-3 px-3">Watch Location</th>
-              <th className="py-3 px-3">Watch Parties</th>
+              <th className="py-3 px-3">San Diego Public Watch Parties</th>
               <th className="py-3 px-3">Interest</th>
+              <th className="py-3 px-3">Watch / Host</th>
             </tr>
           </thead>
           <tbody>
@@ -152,6 +164,15 @@ export function GameTable({ games }: { games: GameLike[] }) {
                         game.interestLevel.slice(1)}
                   </span>
                 </td>
+                <td className="py-3 px-3">
+                  <WatchHostButtons
+                    gameId={game.id}
+                    watchCount={game.watchCount ?? 0}
+                    userWatching={game.userWatching ?? false}
+                    userHosting={game.userHosting ?? false}
+                    onToggle={onToggle ?? (() => {})}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -161,14 +182,14 @@ export function GameTable({ games }: { games: GameLike[] }) {
       {/* Mobile cards */}
       <div className="md:hidden space-y-3">
         {games.map((game) => (
-          <GameCard key={game.id} game={game} />
+          <GameCard key={game.id} game={game} onToggle={onToggle} />
         ))}
       </div>
     </>
   );
 }
 
-function GameCard({ game }: { game: GameLike }) {
+function GameCard({ game, onToggle }: { game: GameLike; onToggle?: (gameId: number, type: "watch" | "host") => void }) {
   return (
     <div
       className={`p-4 rounded-xl border ${
@@ -236,6 +257,16 @@ function GameCard({ game }: { game: GameLike }) {
             )}
           </div>
         )}
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <WatchHostButtons
+          gameId={game.id}
+          watchCount={game.watchCount ?? 0}
+          userWatching={game.userWatching ?? false}
+          userHosting={game.userHosting ?? false}
+          onToggle={onToggle ?? (() => {})}
+        />
       </div>
     </div>
   );

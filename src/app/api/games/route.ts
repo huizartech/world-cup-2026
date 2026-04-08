@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { games } from "@/db/schema";
+import { games, gameSelections } from "@/db/schema";
 import { auth } from "@/auth";
 import { getUserAccessibleGameIds, filterGameForUser } from "@/lib/permissions";
-import { asc, eq, and, gte, lte, inArray } from "drizzle-orm";
+import { SD_WATCH_PARTIES } from "@/lib/watch-venues";
+import { asc, eq, and, gte, lte, count } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -32,6 +33,35 @@ export async function GET(request: NextRequest) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(games.kickoffTime), asc(games.matchNumber));
 
+  // Get watch counts per game
+  const watchCounts = await db
+    .select({
+      gameId: gameSelections.gameId,
+      watchCount: count(),
+    })
+    .from(gameSelections)
+    .where(eq(gameSelections.watching, true))
+    .groupBy(gameSelections.gameId);
+
+  const watchCountMap = new Map(watchCounts.map((wc) => [wc.gameId, wc.watchCount]));
+
+  // Get user's own selections if authenticated
+  let userSelectionMap = new Map<number, { watching: boolean; hosting: boolean }>();
+  if (user?.id) {
+    const userSelections = await db
+      .select({
+        gameId: gameSelections.gameId,
+        watching: gameSelections.watching,
+        hosting: gameSelections.hosting,
+      })
+      .from(gameSelections)
+      .where(eq(gameSelections.userId, user.id));
+
+    userSelectionMap = new Map(
+      userSelections.map((s) => [s.gameId, { watching: s.watching, hosting: s.hosting }])
+    );
+  }
+
   // Filter private locations based on user access
   const accessibleIds = user ? await getUserAccessibleGameIds(user.id) : new Set<number>();
 
@@ -39,5 +69,17 @@ export async function GET(request: NextRequest) {
     filterGameForUser(game, user, accessibleIds)
   );
 
-  return NextResponse.json(filtered);
+  // Attach watch parties, counts, and user selections
+  const enriched = filtered.map((game) => {
+    const userSel = userSelectionMap.get(game.id);
+    return {
+      ...game,
+      watchParties: SD_WATCH_PARTIES,
+      watchCount: watchCountMap.get(game.id) ?? 0,
+      userWatching: userSel?.watching ?? false,
+      userHosting: userSel?.hosting ?? false,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }

@@ -37,31 +37,46 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 255 }),
   image: text("image"),
+  phone: varchar("phone", { length: 50 }),
   role: varchar("role", { length: 20 }).notNull().default("user"), // user, admin
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const surveyResponses = pgTable(
-  "survey_responses",
+export const gameSelections = pgTable(
+  "game_selections",
   {
     id: serial("id").primaryKey(),
     userId: integer("user_id")
       .notNull()
       .references(() => users.id),
-    name: varchar("name", { length: 255 }).notNull(),
-    email: varchar("email", { length: 255 }).notNull(),
-    phone: varchar("phone", { length: 50 }),
-    canHost: boolean("can_host").notNull().default(false),
-    gamesToHost: integer("games_to_host").array(),
-    gamesCareAbout: integer("games_care_about").array(),
-    wantsEmailReminders: boolean("wants_email_reminders").notNull().default(false),
-    wantsTextReminders: boolean("wants_text_reminders").notNull().default(true),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => games.id),
+    watching: boolean("watching").notNull().default(false),
+    hosting: boolean("hosting").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("survey_user_unique").on(table.userId)]
+  (table) => [uniqueIndex("selection_user_game_unique").on(table.userId, table.gameId)]
 );
+
+export const hostParties = pgTable("host_parties", {
+  id: serial("id").primaryKey(),
+  gameId: integer("game_id")
+    .notNull()
+    .references(() => games.id),
+  hostUserId: integer("host_user_id")
+    .notNull()
+    .references(() => users.id),
+  location: text("location").notNull(),
+  notes: text("notes"),
+  createdBy: integer("created_by")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const watchPartyAccess = pgTable(
   "watch_party_access",
@@ -85,5 +100,6 @@ export const watchPartyAccess = pgTable(
 export type Game = typeof games.$inferSelect;
 export type NewGame = typeof games.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type SurveyResponse = typeof surveyResponses.$inferSelect;
+export type GameSelection = typeof gameSelections.$inferSelect;
+export type HostParty = typeof hostParties.$inferSelect;
 export type WatchPartyAccess = typeof watchPartyAccess.$inferSelect;
