@@ -51,8 +51,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       return true;
     },
-    async jwt({ token, account }) {
-      if (account) {
+    async jwt({ token, account, trigger }) {
+      // Re-fetch from DB on sign-in, when dbId is missing, or when session update is requested
+      const shouldRefresh = account || !token.dbId || trigger === "update";
+      if (shouldRefresh) {
         try {
           const dbUser = await db
             .select()
@@ -66,25 +68,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             token.phone = dbUser[0].phone;
           }
         } catch {
-          // No database — set role from env match
-          token.role = token.email === process.env.ADMIN_EMAIL ? "admin" : "user";
-        }
-      } else if (!token.dbId) {
-        // Subsequent requests: look up dbId if not yet set
-        try {
-          const dbUser = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, token.email!))
-            .limit(1);
-
-          if (dbUser.length > 0) {
-            token.dbId = dbUser[0].id;
-            token.role = dbUser[0].role;
-            token.phone = dbUser[0].phone;
+          if (!token.role) {
+            token.role = token.email === process.env.ADMIN_EMAIL ? "admin" : "user";
           }
-        } catch {
-          // No database available
         }
       }
       return token;

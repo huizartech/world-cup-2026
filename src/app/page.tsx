@@ -95,21 +95,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [dbGames, fetchGames]);
 
-  const handleToggle = useCallback(async (gameId: number, type: "watch" | "host") => {
-    // Check auth
-    if (!session?.user) {
-      setPendingToggle({ gameId, type });
-      setShowSignIn(true);
-      return;
-    }
-
-    // Check phone
-    if (!session.user.phone) {
-      setPendingToggle({ gameId, type });
-      setShowPhone(true);
-      return;
-    }
-
+  const executeToggle = useCallback(async (gameId: number, type: "watch" | "host") => {
     // Optimistic update
     setDbGames((prev) => {
       if (!prev) return prev;
@@ -135,7 +121,6 @@ export default function HomePage() {
       });
       if (res.ok) {
         const { watching, hosting, watchCount } = await res.json();
-        // Reconcile with server
         setDbGames((prev) => {
           if (!prev) return prev;
           return prev.map((g) =>
@@ -146,24 +131,36 @@ export default function HomePage() {
         });
       }
     } catch {
-      // Revert on error by refetching
       fetchGames();
     }
-  }, [session, fetchGames]);
+  }, [fetchGames]);
 
-  const handlePhoneSubmit = useCallback(async (phone: string) => {
-    setShowPhone(false);
-    // Update session to reflect new phone
-    await updateSession();
-    // Execute pending toggle
-    if (pendingToggle) {
-      // Small delay to let session update propagate
-      setTimeout(() => {
-        handleToggle(pendingToggle.gameId, pendingToggle.type);
-        setPendingToggle(null);
-      }, 500);
+  const handleToggle = useCallback(async (gameId: number, type: "watch" | "host") => {
+    if (!session?.user) {
+      setPendingToggle({ gameId, type });
+      setShowSignIn(true);
+      return;
     }
-  }, [pendingToggle, handleToggle, updateSession]);
+
+    if (!session.user.phone) {
+      setPendingToggle({ gameId, type });
+      setShowPhone(true);
+      return;
+    }
+
+    executeToggle(gameId, type);
+  }, [session, executeToggle]);
+
+  const handlePhoneSubmit = useCallback(async (_phone: string) => {
+    setShowPhone(false);
+    await updateSession();
+    // Execute the pending toggle directly — phone is now saved in DB,
+    // the API will accept it even if the session hasn't refreshed yet
+    if (pendingToggle) {
+      executeToggle(pendingToggle.gameId, pendingToggle.type);
+      setPendingToggle(null);
+    }
+  }, [pendingToggle, executeToggle, updateSession]);
 
   // Apply filters and sorting
   const games = useMemo(() => {
