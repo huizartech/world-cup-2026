@@ -6,8 +6,13 @@ let _db: ReturnType<typeof import("drizzle-orm/vercel-postgres").drizzle> | null
 
 function getDb() {
   if (!_db) {
-    // These imports will throw if POSTGRES_URL is missing,
-    // but that only happens inside a try/catch at the call site.
+    // Strip channel_binding param that can cause connection issues
+    if (process.env.POSTGRES_URL) {
+      process.env.POSTGRES_URL = process.env.POSTGRES_URL.replace(
+        /[?&]channel_binding=require/,
+        ""
+      );
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { sql } = require("@vercel/postgres");
     // eslint-disable-next-line @typescript-eslint/no-require-imports
