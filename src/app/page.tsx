@@ -79,6 +79,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showSignIn, setShowSignIn] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
+  const [phoneConfirmed, setPhoneConfirmed] = useState(false);
   const [pendingToggle, setPendingToggle] = useState<{ gameId: number; type: "watch" | "host" } | null>(null);
   const [filters, setFilters] = useState<Filters>({
     stage: "",
@@ -172,18 +173,19 @@ export default function HomePage() {
       return;
     }
 
-    if (!session.user.phone) {
+    if (!session.user.phone && !phoneConfirmed) {
       setPendingToggle({ gameId, type });
       setShowPhone(true);
       return;
     }
 
     executeToggle(gameId, type);
-  }, [session, executeToggle]);
+  }, [session, phoneConfirmed, executeToggle]);
 
   const handlePhoneSubmit = useCallback(async (_phone: string) => {
     setShowPhone(false);
-    await updateSession();
+    setPhoneConfirmed(true);
+    updateSession();
     // Execute the pending toggle directly — phone is now saved in DB,
     // the API will accept it even if the session hasn't refreshed yet
     if (pendingToggle) {
