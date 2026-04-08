@@ -1,65 +1,174 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { GameTable } from "@/components/game-table";
+import { FilterBar, type Filters } from "@/components/filter-bar";
+import { KnockoutBracket } from "@/components/knockout-bracket";
+import { RankingsTable } from "@/components/rankings-table";
+import { staticGames, type StaticGame } from "@/lib/static-games";
+
+// Returns local hour (0-23) for a UTC time string
+function getLocalHour(kickoffTime: string): number {
+  return new Date(kickoffTime).getHours();
+}
+
+function matchesTimeOfDay(kickoffTime: string, slots: Set<string>): boolean {
+  const hour = getLocalHour(kickoffTime);
+  for (const slot of slots) {
+    switch (slot) {
+      case "morning":
+        if (hour >= 0 && hour < 12) return true;
+        break;
+      case "afternoon":
+        if (hour >= 12 && hour < 17) return true;
+        break;
+      case "evening":
+        if (hour >= 17 && hour < 21) return true;
+        break;
+      case "late_night":
+        if (hour >= 21) return true;
+        break;
+    }
+  }
+  return false;
+}
+
+export default function HomePage() {
+  const [dbGames, setDbGames] = useState<StaticGame[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<Filters>({
+    stage: "",
+    groups: new Set<string>(),
+    date: "",
+    interest: "",
+    timeOfDay: new Set<string>(),
+  });
+
+  const fetchGames = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.stage) params.set("stage", filters.stage);
+      if (filters.date) params.set("date", filters.date);
+      if (filters.interest) params.set("interest", filters.interest);
+
+      const res = await fetch(`/api/games?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          setDbGames(data);
+        }
+      }
+    } catch {
+      // API unavailable — static data will be used
+    }
+    setLoading(false);
+  }, [filters.stage, filters.date, filters.interest]);
+
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames]);
+
+  // Poll for live score updates every 60 seconds (only if DB is connected)
+  useEffect(() => {
+    if (!dbGames) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/scores");
+        if (res.ok) fetchGames();
+      } catch {
+        // ignore
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [dbGames, fetchGames]);
+
+  // Apply filters and sorting
+  const games = useMemo(() => {
+    const source = dbGames ?? staticGames;
+
+    const filtered = source.filter((game) => {
+      if (filters.stage && game.stage !== filters.stage) return false;
+      if (filters.groups.size > 0) {
+        if (!game.groupName || !filters.groups.has(game.groupName)) return false;
+      }
+      if (filters.interest && game.interestLevel !== filters.interest) return false;
+      if (filters.date) {
+        const gameDate = new Date(game.kickoffTime).toISOString().split("T")[0];
+        if (gameDate !== filters.date) return false;
+      }
+      if (filters.timeOfDay.size > 0 && !matchesTimeOfDay(game.kickoffTime, filters.timeOfDay)) {
+        return false;
+      }
+      return true;
+    });
+
+    // Sort by date then match number
+    return [...filtered].sort((a, b) => {
+      const timeCmp =
+        new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime();
+      if (timeCmp !== 0) return timeCmp;
+      return a.matchNumber - b.matchNumber;
+    });
+  }, [dbGames, filters]);
+
+  const gameCount = games.length;
+  const liveCount = games.filter((g) => g.matchStatus === "live").length;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          FIFA World Cup 2026
+        </h1>
+        <p className="text-gray-500">
+          {gameCount} match{gameCount !== 1 ? "es" : ""}
+          {liveCount > 0 && (
+            <span className="text-red-600 font-medium">
+              {" "}· {liveCount} live now
+            </span>
+          )}
+          {" "}· June 11 – July 19, 2026
+        </p>
+      </div>
+
+      <div className="mb-6">
+        <FilterBar filters={filters} onChange={setFilters} />
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="h-16 bg-white rounded-xl animate-pulse border border-gray-100"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ))}
         </div>
-      </main>
+      ) : (
+        <GameTable games={games} />
+      )}
+
+      {/* Knockout Bracket */}
+      <div className="mt-16">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Knockout Stage
+        </h2>
+        <p className="text-gray-500 mb-6">
+          Round of 32 through the Final. Navigate between rounds with the arrows.
+        </p>
+        <KnockoutBracket games={dbGames ?? staticGames} />
+      </div>
+
+      {/* Team Rankings */}
+      <div className="mt-16">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Team Rankings
+        </h2>
+        <p className="text-gray-500 mb-6">
+          FIFA rankings for all 48 qualified teams. Sort by rank or group, filter by confederation.
+        </p>
+        <RankingsTable />
+      </div>
     </div>
   );
 }
