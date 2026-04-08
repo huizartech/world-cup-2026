@@ -6,6 +6,7 @@ import { GameTable } from "@/components/game-table";
 import { FilterBar, type Filters } from "@/components/filter-bar";
 import { KnockoutBracket } from "@/components/knockout-bracket";
 import { RankingsTable } from "@/components/rankings-table";
+import { GroupStandings } from "@/components/group-standings";
 import { SignInPromptModal } from "@/components/sign-in-prompt-modal";
 import { PhonePromptModal } from "@/components/phone-prompt-modal";
 import { staticGames, type StaticGame } from "@/lib/static-games";
@@ -228,6 +229,17 @@ export default function HomePage() {
       ) : (
         <GameTable games={games} onToggle={handleToggle} />
       )}
+
+      {/* Group Stage Standings */}
+      <div className="mt-16">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Group Stage Standings
+        </h2>
+        <p className="text-gray-500 mb-6">
+          12 groups of 4 teams. Top 2 from each group (highlighted) advance to the Round of 32.
+        </p>
+        <GroupStandings games={dbGames ?? staticGames} />
+      </div>
 
       {/* Knockout Bracket */}
       <div className="mt-16">
