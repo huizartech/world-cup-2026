@@ -8,10 +8,9 @@ function getDb() {
   if (!_db) {
     // Strip channel_binding param that can cause connection issues
     if (process.env.POSTGRES_URL) {
-      process.env.POSTGRES_URL = process.env.POSTGRES_URL.replace(
-        /[?&]channel_binding=require/,
-        ""
-      );
+      const url = new URL(process.env.POSTGRES_URL);
+      url.searchParams.delete("channel_binding");
+      process.env.POSTGRES_URL = url.toString();
     }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { sql } = require("@vercel/postgres");
