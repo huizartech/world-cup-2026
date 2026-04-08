@@ -16,6 +16,7 @@
   "dependencies": {
     "@auth/core": "^0.41.0",
     "@auth/drizzle-adapter": "^1.11.1",
+    "@neondatabase/serverless": "^1.0.2",
     "@vercel/postgres": "^0.10.0",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.2",
