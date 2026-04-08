@@ -25,15 +25,22 @@ const statusColors: Record<string, string> = {
   finished: "text-gray-700",
 };
 
-function formatTime(date: string | Date) {
+function formatDate(date: string | Date) {
+  const d = new Date(date);
   return new Intl.DateTimeFormat(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
+  }).format(d);
+}
+
+function formatTimeOnly(date: string | Date) {
+  const d = new Date(date);
+  return new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",
-  }).format(new Date(date));
+  }).format(d);
 }
 
 function stageLabel(stage: string, groupName: string | null): string {
@@ -146,7 +153,8 @@ export function GameTable({
                   </div>
                 </td>
                 <td className="py-3 px-3 text-gray-600 whitespace-nowrap">
-                  {formatTime(game.kickoffTime)}
+                  <div>{formatDate(game.kickoffTime)}</div>
+                  <div className="text-gray-400">{formatTimeOnly(game.kickoffTime)}</div>
                 </td>
                 <td className="py-3 px-3 text-gray-600 text-xs">
                   <div>{game.venueStadium}</div>
@@ -247,7 +255,8 @@ function GameCard({ game, onToggle }: { game: GameLike; onToggle?: (gameId: numb
       </div>
 
       <div className="text-xs text-gray-500 space-y-1">
-        <div>{formatTime(game.kickoffTime)}</div>
+        <div>{formatDate(game.kickoffTime)}</div>
+        <div>{formatTimeOnly(game.kickoffTime)}</div>
         <div>
           {game.venueStadium}, {game.venueCity}
         </div>
