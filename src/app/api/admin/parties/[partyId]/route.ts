@@ -16,7 +16,7 @@ export async function PATCH(
 
   const { partyId: partyIdStr } = await params;
   const partyId = parseInt(partyIdStr, 10);
-  const { location, notes, attendeeIds } = await request.json();
+  const { location, notes, attendeeIds, isPublic } = await request.json();
 
   // Get party to find gameId
   const [party] = await db
@@ -41,8 +41,35 @@ export async function PATCH(
       .where(eq(hostParties.id, partyId));
   }
 
-  // Update attendees if provided
-  if (Array.isArray(attendeeIds)) {
+  // Update game location type and details if isPublic was provided
+  if (isPublic !== undefined) {
+    await db
+      .update(games)
+      .set({
+        locationType: isPublic ? "public" : "private",
+        ...(location ? { watchLocation: location } : {}),
+        ...(notes !== undefined ? { locationNotes: notes } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(games.id, party.gameId));
+  } else if (location || notes !== undefined) {
+    await db
+      .update(games)
+      .set({
+        ...(location ? { watchLocation: location } : {}),
+        ...(notes !== undefined ? { locationNotes: notes } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(games.id, party.gameId));
+  }
+
+  if (isPublic) {
+    // Public party — remove all access rows (not needed)
+    await db
+      .delete(watchPartyAccess)
+      .where(eq(watchPartyAccess.gameId, party.gameId));
+  } else if (Array.isArray(attendeeIds)) {
+    // Private party — sync attendees
     // Remove all existing access for this game (except host)
     const existingAccess = await db
       .select()
@@ -61,6 +88,16 @@ export async function PATCH(
           );
       }
     }
+
+    // Ensure host has access
+    await db
+      .insert(watchPartyAccess)
+      .values({
+        userId: party.hostUserId,
+        gameId: party.gameId,
+        grantedBy: session.user.id,
+      })
+      .onConflictDoNothing();
 
     // Add new attendees
     for (const userId of attendeeIds) {

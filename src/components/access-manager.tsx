@@ -11,7 +11,7 @@ interface HostPartyData {
   createdAt: string;
   hostName: string | null;
   hostEmail: string | null;
-  game: { id: number; matchNumber: number; homeTeam: string; awayTeam: string } | null;
+  game: { id: number; matchNumber: number; homeTeam: string; awayTeam: string; locationType: string } | null;
   attendees: Array<{ userId: number; name: string | null; email: string | null }>;
 }
 
@@ -41,7 +41,16 @@ export function AccessManager() {
   const [formLocation, setFormLocation] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formAttendees, setFormAttendees] = useState<number[]>([]);
+  const [formIsPublic, setFormIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Edit state
+  const [editingPartyId, setEditingPartyId] = useState<number | null>(null);
+  const [editLocation, setEditLocation] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editAttendees, setEditAttendees] = useState<number[]>([]);
+  const [editIsPublic, setEditIsPublic] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -85,6 +94,7 @@ export function AccessManager() {
           location: formLocation,
           notes: formNotes || null,
           attendeeIds: formAttendees,
+          isPublic: formIsPublic,
         }),
       });
       if (res.ok) {
@@ -94,6 +104,7 @@ export function AccessManager() {
         setFormLocation("");
         setFormNotes("");
         setFormAttendees([]);
+        setFormIsPublic(false);
         fetchData();
       }
     } catch {
@@ -111,6 +122,50 @@ export function AccessManager() {
 
   const toggleAttendee = (userId: number) => {
     setFormAttendees((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const startEdit = (party: HostPartyData) => {
+    setEditingPartyId(party.id);
+    setEditLocation(party.location);
+    setEditNotes(party.notes ?? "");
+    setEditAttendees(party.attendees.map((a) => a.userId));
+    setEditIsPublic(party.game?.locationType === "public");
+  };
+
+  const cancelEdit = () => {
+    setEditingPartyId(null);
+  };
+
+  const saveEdit = async (partyId: number) => {
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/admin/parties/${partyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: editLocation,
+          notes: editNotes || null,
+          attendeeIds: editAttendees,
+          isPublic: editIsPublic,
+        }),
+      });
+      if (res.ok) {
+        setEditingPartyId(null);
+        fetchData();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const toggleEditAttendee = (userId: number) => {
+    setEditAttendees((prev) =>
       prev.includes(userId)
         ? prev.filter((id) => id !== userId)
         : [...prev, userId]
@@ -176,22 +231,44 @@ export function AccessManager() {
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
             />
             <div>
-              <p className="text-sm text-gray-600 mb-2">Attendees (optional):</p>
-              <div className="flex flex-wrap gap-2">
-                {allUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => toggleAttendee(u.id)}
-                    className={`px-2 py-1 rounded-full text-xs transition-colors ${
-                      formAttendees.includes(u.id)
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    }`}
-                  >
-                    {u.name ?? u.email}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3 mb-2">
+                <p className="text-sm text-gray-600">Visibility:</p>
+                <button
+                  onClick={() => {
+                    setFormIsPublic((prev) => !prev);
+                    if (!formIsPublic) setFormAttendees([]);
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    formIsPublic
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}
+                >
+                  Public
+                </button>
               </div>
+              {formIsPublic ? (
+                <p className="text-xs text-green-700">Everyone can see this location — no attendee list needed.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 mb-2">Attendees (optional):</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allUsers.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => toggleAttendee(u.id)}
+                        className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                          formAttendees.includes(u.id)
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        {u.name ?? u.email}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex gap-3">
               <button
@@ -236,31 +313,121 @@ export function AccessManager() {
                   <span className="text-gray-400 text-sm ml-2">
                     hosted by {party.hostName ?? party.hostEmail}
                   </span>
-                </div>
-                <button
-                  onClick={() => deleteParty(party.id)}
-                  className="text-red-500 hover:text-red-700 text-xs"
-                >
-                  Delete
-                </button>
-              </div>
-              <div className="text-sm text-gray-600">
-                <span className="text-green-700">{party.location}</span>
-                {party.notes && (
-                  <span className="text-gray-400 ml-2">· {party.notes}</span>
-                )}
-              </div>
-              {party.attendees.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {party.attendees.map((a) => (
-                    <span
-                      key={a.userId}
-                      className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700"
-                    >
-                      {a.name ?? a.email}
+                  {party.game?.locationType === "public" && (
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      Public
                     </span>
-                  ))}
+                  )}
                 </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => startEdit(party)}
+                    className="text-blue-500 hover:text-blue-700 text-xs"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteParty(party.id)}
+                    className="text-red-500 hover:text-red-700 text-xs"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              {editingPartyId === party.id ? (
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="Location"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <p className="text-sm text-gray-600">Visibility:</p>
+                      <button
+                        onClick={() => {
+                          setEditIsPublic((prev) => !prev);
+                          if (!editIsPublic) setEditAttendees([]);
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          editIsPublic
+                            ? "bg-green-600 text-white"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        Public
+                      </button>
+                    </div>
+                    {editIsPublic ? (
+                      <p className="text-xs text-green-700">Everyone can see this location — no attendee list needed.</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-600 mb-2">Attendees:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {allUsers.map((u) => (
+                            <button
+                              key={u.id}
+                              onClick={() => toggleEditAttendee(u.id)}
+                              className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                                editAttendees.includes(u.id)
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                              }`}
+                            >
+                              {u.name ?? u.email}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => saveEdit(party.id)}
+                      disabled={!editLocation || editSaving}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {editSaving ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm text-gray-600">
+                    <span className="text-green-700">{party.location}</span>
+                    {party.notes && (
+                      <span className="text-gray-400 ml-2">· {party.notes}</span>
+                    )}
+                  </div>
+                  {party.attendees.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {party.attendees.map((a) => (
+                        <span
+                          key={a.userId}
+                          className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700"
+                        >
+                          {a.name ?? a.email}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))

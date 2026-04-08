@@ -36,6 +36,7 @@ export async function GET() {
             matchNumber: games.matchNumber,
             homeTeam: games.homeTeam,
             awayTeam: games.awayTeam,
+            locationType: games.locationType,
           })
           .from(games)
       : [];
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const { gameId, hostUserId, location, notes, attendeeIds } = await request.json();
+  const { gameId, hostUserId, location, notes, attendeeIds, isPublic } = await request.json();
 
   if (!gameId || !hostUserId || !location) {
     return NextResponse.json({ error: "gameId, hostUserId, and location are required" }, { status: 400 });
@@ -92,38 +93,41 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  // Update the game to have private location
+  // Update the game location type
   await db
     .update(games)
     .set({
-      locationType: "private",
+      locationType: isPublic ? "public" : "private",
       watchLocation: location,
       locationNotes: notes ?? null,
       updatedAt: new Date(),
     })
     .where(eq(games.id, gameId));
 
-  // Grant access to host
-  await db
-    .insert(watchPartyAccess)
-    .values({
-      userId: hostUserId,
-      gameId,
-      grantedBy: session.user.id,
-    })
-    .onConflictDoNothing();
-
-  // Grant access to attendees
-  const allAttendees: number[] = attendeeIds ?? [];
-  for (const userId of allAttendees) {
+  // For private parties, grant access to host and attendees
+  if (!isPublic) {
+    // Grant access to host
     await db
       .insert(watchPartyAccess)
       .values({
-        userId,
+        userId: hostUserId,
         gameId,
         grantedBy: session.user.id,
       })
       .onConflictDoNothing();
+
+    // Grant access to attendees
+    const allAttendees: number[] = attendeeIds ?? [];
+    for (const userId of allAttendees) {
+      await db
+        .insert(watchPartyAccess)
+        .values({
+          userId,
+          gameId,
+          grantedBy: session.user.id,
+        })
+        .onConflictDoNothing();
+    }
   }
 
   return NextResponse.json(party, { status: 201 });

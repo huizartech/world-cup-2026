@@ -5,6 +5,22 @@ import { eq, and, gte, lte } from "drizzle-orm";
 const API_BASE = "https://api.football-data.org/v4";
 const COMPETITION_ID = 2000; // FIFA World Cup
 
+// Map football-data.org team names to our DB team names
+const API_TEAM_MAP: Record<string, string> = {
+  "South Korea": "Korea Republic",
+  "Turkey": "Türkiye",
+  "Iran": "IR Iran",
+  "Ivory Coast": "Côte d'Ivoire",
+  "Cape Verde": "Cabo Verde",
+  "DR Congo": "Congo DR",
+  "Curacao": "Curaçao",
+  "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+};
+
+function normalizeTeamName(apiName: string): string {
+  return API_TEAM_MAP[apiName] ?? apiName;
+}
+
 // Cache last fetch timestamp to avoid redundant calls
 let lastFetchedAt = 0;
 const MIN_FETCH_INTERVAL = 30_000; // 30 seconds
@@ -41,16 +57,41 @@ export async function fetchLiveScores(): Promise<{
     let updated = 0;
     for (const match of data.matches ?? []) {
       const status = mapStatus(match.status);
-      const result = await db
+      const homeTeam = normalizeTeamName(match.homeTeam?.name ?? "");
+      const awayTeam = normalizeTeamName(match.awayTeam?.name ?? "");
+
+      // Try fast path: match by apiMatchId if previously saved
+      if (match.id) {
+        const byId = await db
+          .update(games)
+          .set({
+            homeScore: match.score?.fullTime?.home ?? match.score?.halfTime?.home,
+            awayScore: match.score?.fullTime?.away ?? match.score?.halfTime?.away,
+            matchStatus: status,
+            updatedAt: new Date(),
+          })
+          .where(eq(games.apiMatchId, match.id));
+        if (byId.rowCount && byId.rowCount > 0) {
+          updated++;
+          continue;
+        }
+      }
+
+      // Slow path: match by team names, then save apiMatchId for next time
+      if (!homeTeam || !awayTeam) continue;
+      const byName = await db
         .update(games)
         .set({
           homeScore: match.score?.fullTime?.home ?? match.score?.halfTime?.home,
           awayScore: match.score?.fullTime?.away ?? match.score?.halfTime?.away,
           matchStatus: status,
+          apiMatchId: match.id,
           updatedAt: new Date(),
         })
-        .where(eq(games.apiMatchId, match.id));
-      if (result.rowCount && result.rowCount > 0) updated++;
+        .where(
+          and(eq(games.homeTeam, homeTeam), eq(games.awayTeam, awayTeam))
+        );
+      if (byName.rowCount && byName.rowCount > 0) updated++;
     }
 
     return { updated, matches: data.matches?.length ?? 0 };
