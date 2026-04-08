@@ -75,10 +75,11 @@ export function SurveyForm({ initialData, userEmail, userName }: SurveyFormProps
       if (res.ok) {
         setSaved(true);
       } else {
-        setError("Failed to save. Make sure the database is connected.");
+        const data = await res.json().catch(() => null);
+        setError(data?.error || "Failed to save. Check Vercel logs for details.");
       }
-    } catch {
-      setError("Failed to save. Make sure the database is connected.");
+    } catch (e) {
+      setError(`Network error: ${e}`);
     }
     setSaving(false);
   };
