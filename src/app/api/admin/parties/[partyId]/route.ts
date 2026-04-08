@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAdmin } from "@/lib/permissions";
 import { db } from "@/db";
-import { hostParties, watchPartyAccess } from "@/db/schema";
+import { hostParties, watchPartyAccess, games } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function PATCH(
@@ -109,6 +109,17 @@ export async function DELETE(
 
   // Delete the party
   await db.delete(hostParties).where(eq(hostParties.id, partyId));
+
+  // Reset the game's location back to none
+  await db
+    .update(games)
+    .set({
+      locationType: "none",
+      watchLocation: null,
+      locationNotes: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(games.id, party.gameId));
 
   return NextResponse.json({ success: true });
 }
