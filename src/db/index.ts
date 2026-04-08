@@ -5,11 +5,23 @@ import * as schema from "./schema";
 function getConnectionString() {
   const url = process.env.POSTGRES_URL;
   if (!url) throw new Error("POSTGRES_URL is not set");
-  // Strip channel_binding param that Neon pooler adds but the HTTP driver doesn't support
-  const parsed = new URL(url);
-  parsed.searchParams.delete("channel_binding");
-  return parsed.toString();
+  // Strip channel_binding param using string replacement
+  return url
+    .replace(/[?&]channel_binding=[^&]*/, (match) =>
+      match.startsWith("?") ? "?" : ""
+    )
+    .replace(/\?&/, "?")
+    .replace(/\?$/, "");
 }
 
-const sql = neon(getConnectionString());
-export const db = drizzle(sql, { schema });
+let _db: ReturnType<typeof drizzle> | null = null;
+
+export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_target, prop) {
+    if (!_db) {
+      const sql = neon(getConnectionString());
+      _db = drizzle(sql, { schema });
+    }
+    return (_db as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});
