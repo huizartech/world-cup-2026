@@ -32,6 +32,26 @@ export default function SelectionsOverviewPage() {
   const [games, setGames] = useState<SelectionGame[]>([]);
   const [selections, setSelections] = useState<Selection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const handleDeleteUser = async (user: SelectionUser) => {
+    if (!confirm(`Delete ${user.name ?? user.email} and all their selections? They can re-sign up after.`)) return;
+    setDeleting(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error ?? "Failed to delete user");
+        return;
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setSelections((prev) => prev.filter((s) => s.userId !== user.id));
+    } catch {
+      alert("Failed to delete user");
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/admin/selections")
@@ -158,6 +178,14 @@ export default function SelectionsOverviewPage() {
                         )}
                       </div>
                     </div>
+                    <button
+                      onClick={() => handleDeleteUser(u)}
+                      disabled={deleting === u.id}
+                      className="shrink-0 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                      title={`Delete ${u.name ?? u.email}`}
+                    >
+                      {deleting === u.id ? "..." : "Delete"}
+                    </button>
                   </div>
                 );
               })}
