@@ -55,6 +55,7 @@ export default function HomePage() {
     date: "",
     interest: "",
     timeOfDay: new Set<string>(),
+    dayType: "",
   });
 
   const fetchGames = useCallback(async () => {
@@ -178,6 +179,12 @@ export default function HomePage() {
       }
       if (filters.timeOfDay.size > 0 && !matchesTimeOfDay(game.kickoffTime, filters.timeOfDay)) {
         return false;
+      }
+      if (filters.dayType) {
+        const day = new Date(game.kickoffTime).getDay(); // 0=Sun, 6=Sat
+        const isWeekend = day === 0 || day === 6;
+        if (filters.dayType === "weekend" && !isWeekend) return false;
+        if (filters.dayType === "weekday" && isWeekend) return false;
       }
       return true;
     });

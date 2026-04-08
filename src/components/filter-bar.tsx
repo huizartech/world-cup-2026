@@ -35,6 +35,7 @@ export interface Filters {
   date: string;
   interest: string;
   timeOfDay: Set<string>;
+  dayType: string; // "" | "weekday" | "weekend"
 }
 
 interface FilterBarProps {
@@ -72,7 +73,8 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
     filters.groups.size > 0 ||
     filters.date ||
     filters.interest ||
-    filters.timeOfDay.size > 0;
+    filters.timeOfDay.size > 0 ||
+    filters.dayType;
 
   return (
     <div className="space-y-3 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -120,6 +122,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
                 date: "",
                 interest: "",
                 timeOfDay: new Set(),
+                dayType: "",
               })
             }
             className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -129,8 +132,30 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
         )}
       </div>
 
-      {/* Row 2: Time of Day */}
+      {/* Row 2: Day type + Time of Day */}
       <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-400 uppercase tracking-wider mr-1">
+          Day
+        </span>
+        {([
+          { value: "weekday", label: "Weekday" },
+          { value: "weekend", label: "Weekend" },
+        ] as const).map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => update("dayType", filters.dayType === opt.value ? "" : opt.value)}
+            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              filters.dayType === opt.value
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+
+        <span className="text-gray-200 mx-1">|</span>
+
         <span className="text-xs text-gray-400 uppercase tracking-wider mr-1">
           Time
         </span>
