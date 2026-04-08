@@ -54,6 +54,66 @@ function stageLabel(stage: string, groupName: string | null): string {
   }
 }
 
+const teamFlags: Record<string, string> = {
+  "Mexico": "🇲🇽",
+  "South Africa": "🇿🇦",
+  "Korea Republic": "🇰🇷",
+  "Czechia": "🇨🇿",
+  "Canada": "🇨🇦",
+  "Bosnia and Herzegovina": "🇧🇦",
+  "Qatar": "🇶🇦",
+  "Switzerland": "🇨🇭",
+  "Brazil": "🇧🇷",
+  "Morocco": "🇲🇦",
+  "Haiti": "🇭🇹",
+  "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  "USA": "🇺🇸",
+  "Paraguay": "🇵🇾",
+  "Australia": "🇦🇺",
+  "Türkiye": "🇹🇷",
+  "Germany": "🇩🇪",
+  "Curaçao": "🇨🇼",
+  "Côte d'Ivoire": "🇨🇮",
+  "Ecuador": "🇪🇨",
+  "Netherlands": "🇳🇱",
+  "Japan": "🇯🇵",
+  "Sweden": "🇸🇪",
+  "Tunisia": "🇹🇳",
+  "Belgium": "🇧🇪",
+  "Egypt": "🇪🇬",
+  "IR Iran": "🇮🇷",
+  "New Zealand": "🇳🇿",
+  "Spain": "🇪🇸",
+  "Cabo Verde": "🇨🇻",
+  "Saudi Arabia": "🇸🇦",
+  "Uruguay": "🇺🇾",
+  "France": "🇫🇷",
+  "Senegal": "🇸🇳",
+  "Iraq": "🇮🇶",
+  "Norway": "🇳🇴",
+  "Argentina": "🇦🇷",
+  "Algeria": "🇩🇿",
+  "Austria": "🇦🇹",
+  "Jordan": "🇯🇴",
+  "Portugal": "🇵🇹",
+  "Congo DR": "🇨🇩",
+  "Uzbekistan": "🇺🇿",
+  "Colombia": "🇨🇴",
+  "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Croatia": "🇭🇷",
+  "Ghana": "🇬🇭",
+  "Panama": "🇵🇦",
+};
+
+function TeamName({ name, align }: { name: string; align?: "left" | "right" }) {
+  const flag = teamFlags[name];
+  if (!flag) return <>{name}</>;
+  if (align === "right") {
+    return <>{name} {flag}</>;
+  }
+  return <>{flag} {name}</>;
+}
+
 export function LiveScoreBadge({ status }: { status: string }) {
   if (status !== "live") return null;
   return (
@@ -110,9 +170,9 @@ export function GameTable({
                   {stageLabel(game.stage, game.groupName)}
                 </td>
                 <td className="py-3 px-3 font-medium">
-                  <span>{game.homeTeam}</span>
+                  <span><TeamName name={game.homeTeam} align="right" /></span>
                   <span className="text-gray-400 mx-2">vs</span>
-                  <span>{game.awayTeam}</span>
+                  <span><TeamName name={game.awayTeam} /></span>
                 </td>
                 <td className="py-3 px-3">
                   <div className="flex items-center gap-2">
@@ -210,13 +270,13 @@ function GameCard({ game, onToggle }: { game: GameLike; onToggle?: (gameId: numb
       </div>
 
       <div className="flex items-center justify-center gap-4 py-3">
-        <span className="font-semibold text-right flex-1">{game.homeTeam}</span>
+        <span className="font-semibold text-right flex-1"><TeamName name={game.homeTeam} align="right" /></span>
         <div className={`text-lg font-bold ${statusColors[game.matchStatus]}`}>
           {game.matchStatus === "scheduled"
             ? "vs"
             : `${game.homeScore ?? 0} - ${game.awayScore ?? 0}`}
         </div>
-        <span className="font-semibold text-left flex-1">{game.awayTeam}</span>
+        <span className="font-semibold text-left flex-1"><TeamName name={game.awayTeam} /></span>
       </div>
 
       <div className="text-xs text-gray-500 space-y-1">
