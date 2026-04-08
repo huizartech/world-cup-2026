@@ -54,10 +54,12 @@ export default function SelectionsOverviewPage() {
     selMap.set(`${s.userId}-${s.gameId}`, s);
   }
 
-  // Filter to only users who have at least one selection
-  const activeUsers = users.filter((u) =>
-    selections.some((s) => s.userId === u.id && (s.watching || s.hosting))
-  );
+  // All registered users (sorted: those with selections first, then the rest)
+  const activeUsers = [...users].sort((a, b) => {
+    const aHas = userTotals.has(a.id) ? 0 : 1;
+    const bHas = userTotals.has(b.id) ? 0 : 1;
+    return aHas - bHas;
+  });
 
   // Compute totals
   const userTotals = new Map<number, { watch: number; host: number }>();
@@ -111,7 +113,7 @@ export default function SelectionsOverviewPage() {
           <h1 className="text-3xl font-bold text-gray-900">Selections Overview</h1>
           <p className="text-gray-500">
             {selections.filter((s) => s.watching || s.hosting).length} selection(s) from{" "}
-            {activeUsers.length} user(s)
+            {activeUsers.filter((u) => userTotals.has(u.id)).length} of {activeUsers.length} user(s)
           </p>
         </div>
         <button
@@ -124,7 +126,7 @@ export default function SelectionsOverviewPage() {
 
       {activeUsers.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          No selections yet. Users can click Watch/Host buttons on the game table.
+          No users have signed in yet.
         </div>
       ) : (
         <>
