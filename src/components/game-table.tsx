@@ -75,8 +75,14 @@ function WatchPartiesList({ parties, initialCount }: { parties: WatchParty[]; in
     <div className="text-xs space-y-0.5 max-w-[200px]">
       {shown.map((wp) => (
         <div key={wp.venue}>
-          <span className="text-purple-700 font-medium">{wp.venue}</span>
-          <span className="text-gray-400 ml-1">({wp.neighborhood})</span>
+          <a
+            href={`https://maps.apple.com/?q=${encodeURIComponent(wp.venue + ", San Diego, CA")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-700 font-medium hover:underline"
+          >
+            {wp.venue}
+          </a>
         </div>
       ))}
       {hasMore && (
