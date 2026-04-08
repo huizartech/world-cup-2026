@@ -3,12 +3,16 @@
 import { useState } from "react";
 
 function formatPhoneNumber(value: string): string {
-  // Strip everything except digits
-  const digits = value.replace(/\D/g, "");
+  // If already formatted with +1 prefix, strip it before extracting digits
+  const stripped = value.startsWith("+1") ? value.slice(2) : value;
+  let digits = stripped.replace(/\D/g, "");
 
-  // If user typed a leading 1, treat it as country code
-  const hasCountryCode = digits.length > 10 || (digits.length === 11 && digits[0] === "1");
-  const d = hasCountryCode && digits[0] === "1" ? digits.slice(1) : digits;
+  // Handle pasted numbers with leading country code 1
+  if (digits.length === 11 && digits[0] === "1") {
+    digits = digits.slice(1);
+  }
+
+  const d = digits.slice(0, 10);
 
   if (d.length === 0) return "";
   if (d.length <= 3) return `+1 (${d}`;

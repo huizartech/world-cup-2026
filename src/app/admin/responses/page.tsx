@@ -54,13 +54,6 @@ export default function SelectionsOverviewPage() {
     selMap.set(`${s.userId}-${s.gameId}`, s);
   }
 
-  // All registered users (sorted: those with selections first, then the rest)
-  const activeUsers = [...users].sort((a, b) => {
-    const aHas = userTotals.has(a.id) ? 0 : 1;
-    const bHas = userTotals.has(b.id) ? 0 : 1;
-    return aHas - bHas;
-  });
-
   // Compute totals
   const userTotals = new Map<number, { watch: number; host: number }>();
   const gameTotals = new Map<number, { watch: number; host: number }>();
@@ -78,6 +71,13 @@ export default function SelectionsOverviewPage() {
       gameTotals.set(s.gameId, gt);
     }
   }
+
+  // All registered users (sorted: those with selections first, then the rest)
+  const activeUsers = [...users].sort((a, b) => {
+    const aHas = userTotals.has(a.id) ? 0 : 1;
+    const bHas = userTotals.has(b.id) ? 0 : 1;
+    return aHas - bHas;
+  });
 
   const downloadJSON = () => {
     const blob = new Blob([JSON.stringify({ users, games, selections }, null, 2)], {
