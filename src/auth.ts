@@ -68,6 +68,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // No database — set role from env match
           token.role = token.email === process.env.ADMIN_EMAIL ? "admin" : "user";
         }
+      } else if (!token.dbId) {
+        // Subsequent requests: look up dbId if not yet set
+        try {
+          const dbUser = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, token.email!))
+            .limit(1);
+
+          if (dbUser.length > 0) {
+            token.dbId = dbUser[0].id;
+            token.role = dbUser[0].role;
+          }
+        } catch {
+          // No database available
+        }
       }
       return token;
     },
